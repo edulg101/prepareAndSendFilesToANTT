@@ -6,7 +6,6 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.nio.file.StandardCopyOption;
 import java.nio.file.attribute.FileTime;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -15,6 +14,7 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 import java.nio.file.attribute.BasicFileAttributes;
+import org.apache.commons.io.FileUtils;
 
 public class Main {
 
@@ -73,7 +73,7 @@ public class Main {
         if (chosenFile.isDirectory()) {
             startMovingFiles(chosenFile, destParentPathFile);
         } else {
-            Files.move(chosenFile.toPath(), Paths.get(destParentPathFile.getAbsoluteFile() + File.separator + chosenFile.getName()));
+            FileUtils.moveFile(chosenFile, new File(destParentPathFile.getAbsoluteFile() + File.separator + chosenFile.getName()));
 
         }
 
@@ -81,36 +81,18 @@ public class Main {
 
     }
 
-    public static void oldFile() throws IOException {
-
-
-        System.out.println("Cole o endereço da pasta completo one estão os arquivos fotos zipados");
-        String zipFile = new Scanner(System.in).nextLine();
-        zipFile = zipFile.replace("\\", File.separator);
-        String destDirectory = zipFile;
-
-        System.out.println("Cole o endereço da pasta da rede onde serão colados movidos os novos arquivos de fotos zipados");
-        destPathRede = new Scanner(System.in).nextLine();
-
-        if(!new File(destPathRede).exists()){
-            new File(destPathRede).mkdirs();
-        }
-
-        System.out.println(zipFile);
-
-        unzipAllPath(zipFile, destDirectory);
-
-        zipAllDirectory(destDirectory);
-
-
-    }
 
     public static void startMovingFiles(File originFile, File destFinalPath) throws IOException {
         File[] chosenFiles = originFile.listFiles();
 
         for (File file: chosenFiles){
             if(!file.isDirectory()){
-                Files.move(file.toPath(), Paths.get(destFinalPath + File.separator + originFile.getName() + File.separator + file.getName()), StandardCopyOption.REPLACE_EXISTING);
+                if(!file.exists()){
+                    file.mkdirs();
+                }
+                System.out.println("Transferindo Documentos no Diretorio Root");
+                System.out.printf("%s --> %s\n", file.toPath(), destFinalPath + File.separator + originFile.getName() + File.separator + file.getName());
+                FileUtils.moveFile(file, new File(destFinalPath + File.separator + originFile.getName() + File.separator + file.getName()));
             } else {
                 File[] subFiles = file.listFiles();
                 for (File subFile : subFiles) {
@@ -122,13 +104,15 @@ public class Main {
                     }
                 }
                 System.out.println("nome file  --> " + file.getName());
+
                 File compactado = zipAllDirectory1(file);
+
                 for (File f: compactado.listFiles()){
                     Path finalFile = Paths.get(destFinalPath + File.separator + originFile.getName() + File.separator + file.getName() + File.separator + f.getName());
 
                     System.out.println("f --> " + f);
                     System.out.println("destfinal --> " + finalFile);
-                    Files.move(f.toPath(), finalFile, StandardCopyOption.REPLACE_EXISTING);
+                    FileUtils.moveFile(f, finalFile.toFile());
                 }
             }
 
@@ -136,23 +120,11 @@ public class Main {
 
     }
 
-    public static void unzipAllPath(String zipFilePath, String destDirectory) throws IOException {
-        File originPath = new File(zipFilePath);
 
-        File[] listFiles = originPath.listFiles();
-
-        for (File file: listFiles){
-            if(!file.isDirectory()) {
-                unzip(file.getAbsolutePath(), destDirectory);
-            }
-        }
-
-    }
-
-    public static File zipAllDirectory1(File originDirectory) throws IOException {
+    public static File zipAllDirectory1(File anexoDirectory) throws IOException {
 
 
-        File[] listFiles = originDirectory.listFiles();
+        File[] listFiles = anexoDirectory.listFiles();
 
         File diretorio = null;
 
@@ -162,11 +134,15 @@ public class Main {
                 if (file.isDirectory()) {
 
                     String sourceFile = file.getAbsolutePath();
-                    String destFileName = originDirectory + File.separator + "compactado" + File.separator + file.getName() + ".zip";
+                    String destFileName = anexoDirectory + File.separator + "compactado" + File.separator + file.getName() + ".zip";
 
-                    diretorio = new File(originDirectory + File.separator + "compactado");
+                    diretorio = new File(anexoDirectory + File.separator + "compactado");
                     if (!diretorio.exists()) {
                         diretorio.mkdirs();
+                    }
+
+                    if (sourceFile.endsWith("compactado")){
+                        continue;
                     }
 
 
@@ -174,7 +150,7 @@ public class Main {
                     ZipOutputStream zipOut = new ZipOutputStream(fos);
                     File fileToZip = new File(sourceFile);
 
-                    System.out.println("gravando o arquivo: " + fileToZip.getName() + " em --> " + destFileName);
+                    System.out.println("gravando o arquivo: " + fileToZip.toPath() + " em --> " + destFileName);
 
                     zipFile(fileToZip, fileToZip.getName(), zipOut);
                     zipOut.close();
@@ -190,44 +166,6 @@ public class Main {
         }
 
     }
-
-
-
-    public static void zipAllDirectory(String originDirectory) throws IOException {
-
-        File sourcePath = new File(originDirectory);
-
-        File[] listFiles = sourcePath.listFiles();
-
-        File diretorio = null;
-
-        for (File file: listFiles){
-            if (file.isDirectory()) {
-
-                String sourceFile = file.getAbsolutePath();
-                String destFileName =  originDirectory + File.separator + "compactado" + File.separator + file.getName() + ".zip";
-
-                diretorio = new File(originDirectory + File.separator + "compactado");
-                if(!diretorio.exists()){
-                    diretorio.mkdirs();
-                }
-
-
-                FileOutputStream fos = new FileOutputStream(destFileName);
-                ZipOutputStream zipOut = new ZipOutputStream(fos);
-                File fileToZip = new File(sourceFile);
-
-                System.out.println("gravando o arquivo: " + fileToZip.getName() + " em --> " + destFileName);
-
-                zipFile(fileToZip, fileToZip.getName(), zipOut);
-                zipOut.close();
-                fos.close();
-            }
-        }
-
-
-    }
-
 
     private static void unzip(String zipFilePath, String destDirectory) throws IOException {
         File destDir = new File(destDirectory);
@@ -247,7 +185,7 @@ public class Main {
 
             String filePath = destDirectory + File.separator + fileName;
 
-            System.out.println(fileName);
+            System.out.println("descompactando: " + fileName);
 
 
             if (!fileName.contains(".jpg")) {
@@ -275,6 +213,8 @@ public class Main {
         if (!parentFile.exists()) {
             parentFile.mkdirs();
         }
+
+        System.out.println("Reduzindo o tamanho das imagens usando javaxt: " + Paths.get(filePath).getFileName());
 
 
         javaxt.io.Image image = new javaxt.io.Image(zipIn.readAllBytes());
@@ -365,8 +305,6 @@ public class Main {
         }
         return null;
     }
-
-
 }
 
 
