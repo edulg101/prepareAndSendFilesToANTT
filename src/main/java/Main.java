@@ -14,17 +14,18 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
 import java.nio.file.attribute.BasicFileAttributes;
+
 import org.apache.commons.io.FileUtils;
 
 public class Main {
 
     static String destPathRede = "";
-    static String  ROOTDESTPATH = "Z:\\Supervisora\\RTA";
+    static String ROOTDESTPATH = "Z:\\Supervisora\\RTA";
     static File ROOTDESTPATHILE = new File(ROOTDESTPATH);
     static String ROOTORIGINPATH = "D:\\Documentos\\Users\\Eduardo\\Documentos\\ANTT\\OneDrive - ANTT- Agencia Nacional de Transportes Terrestres\\CRO\\Relatórios RTA";
     static File ORIGINPATHFILE = new File(ROOTORIGINPATH);
 
-    public static void main(String[] args) throws IOException, InterruptedException {
+    public static void main(String[] args) throws IOException {
 
         Scanner scanner = getScanner();
 
@@ -37,7 +38,22 @@ public class Main {
 
         }
         String option = scanner.nextLine();
-        int optionInt = Integer.parseInt(option);
+
+        int optionInt = getNumberParsed(option);
+
+        while (optionInt < 1 || optionInt > originFiles.length) {
+            i = 0;
+            System.out.println("escolha:");
+            for (File file : originFiles) {
+                i++;
+                System.out.printf("Digite %d. for %s \n", i, file.getName());
+
+            }
+            option = scanner.nextLine();
+
+            optionInt = getNumberParsed(option);
+        }
+
 
         File chosenFile = originFiles[optionInt - 1];
 
@@ -61,39 +77,55 @@ public class Main {
         String creationYear = creationDate.substring(0, 4).trim();
         String creationMonth = creationDate.substring(5).trim();
 
-        System.out.println("year " + creationYear);
-        System.out.println("motn " + creationMonth);
 
         Path destParentPath = Paths.get(ROOTDESTPATHILE + File.separator + parent + File.separator + creationYear + File.separator + creationDate);
         File destParentPathFile = destParentPath.toFile();
         if (!destParentPathFile.exists()) {
             destParentPathFile.mkdirs();
         }
-
-        if (chosenFile.isDirectory()) {
-            startMovingFiles(chosenFile, destParentPathFile);
-        } else {
+        if (!chosenFile.isDirectory()) {
             FileUtils.moveFile(chosenFile, new File(destParentPathFile.getAbsoluteFile() + File.separator + chosenFile.getName()));
-
+        } else {
+            startMovingFiles(chosenFile, destParentPathFile);
         }
 
         System.out.println(optionStr);
 
     }
 
+    public static int getNumberParsed(String option) {
+        int optionInt = 0;
+
+        try {
+            optionInt = Integer.parseInt(option);
+            return optionInt;
+
+        } catch (NumberFormatException e) {
+            System.out.println("Opção Incorreta, Tente Novamente.....");
+            return -1;
+        }
+    }
+
 
     public static void startMovingFiles(File originFile, File destFinalPath) throws IOException {
-        File[] chosenFiles = originFile.listFiles();
+        File[] chosenFilesIndirectory = originFile.listFiles();
 
-        for (File file: chosenFiles){
-            if(!file.isDirectory()){
-                if(!file.exists()){
+        for (File file : chosenFilesIndirectory) {
+            if (!file.isDirectory()) {
+                if (!file.exists()) {
                     file.mkdirs();
                 }
+
+
                 System.out.println("Transferindo Documentos no Diretorio Root");
                 System.out.printf("%s --> %s\n", file.toPath(), destFinalPath + File.separator + originFile.getName() + File.separator + file.getName());
-                FileUtils.moveFile(file, new File(destFinalPath + File.separator + originFile.getName() + File.separator + file.getName()));
+
+                // concorrencia
+                CopyFiles copyfiles = new CopyFiles("teste", file, new File(destFinalPath + File.separator + originFile.getName() + File.separator + file.getName()));
+                copyfiles.start();
+//                FileUtils.moveFile(file, new File(destFinalPath + File.separator + originFile.getName() + File.separator + file.getName()));
             } else {
+                // dentro da pasta anexo
                 File[] subFiles = file.listFiles();
                 for (File subFile : subFiles) {
                     if (subFile.getName().contains(".zip")) {
@@ -105,15 +137,17 @@ public class Main {
                 }
                 System.out.println("nome file  --> " + file.getName());
 
-                File compactado = zipAllDirectory1(file);
+                File compactado = zipAllDirectory(file, Paths.get(destFinalPath + File.separator + originFile.getName() + File.separator + file.getName()));
 
-                for (File f: compactado.listFiles()){
-                    Path finalFile = Paths.get(destFinalPath + File.separator + originFile.getName() + File.separator + file.getName() + File.separator + f.getName());
-
-                    System.out.println("f --> " + f);
-                    System.out.println("destfinal --> " + finalFile);
-                    FileUtils.moveFile(f, finalFile.toFile());
-                }
+//                if (compactado != null) {
+//                    for (File f : compactado.listFiles()) {
+//                        Path finalFile = Paths.get(destFinalPath + File.separator + originFile.getName() + File.separator + file.getName() + File.separator + f.getName());
+//
+//                        System.out.println("f --> " + f);
+//                        System.out.println("destfinal --> " + finalFile);
+//                        FileUtils.moveFile(f, finalFile.toFile());
+//                    }
+//                }
             }
 
         }
@@ -121,19 +155,19 @@ public class Main {
     }
 
 
-    public static File zipAllDirectory1(File anexoDirectory) throws IOException {
+    public static File zipAllDirectory(File anexoDirectory, Path fileToSave) throws IOException {
 
 
         File[] listFiles = anexoDirectory.listFiles();
 
         File diretorio = null;
 
-        if(listFiles != null) {
+        if (listFiles != null) {
 
             for (File file : listFiles) {
                 if (file.isDirectory()) {
 
-                    String sourceFile = file.getAbsolutePath();
+//                    String sourceFile = file.getAbsolutePath();
                     String destFileName = anexoDirectory + File.separator + "compactado" + File.separator + file.getName() + ".zip";
 
                     diretorio = new File(anexoDirectory + File.separator + "compactado");
@@ -141,26 +175,34 @@ public class Main {
                         diretorio.mkdirs();
                     }
 
-                    if (sourceFile.endsWith("compactado")){
+                    if (file.toPath().endsWith("compactado")) {
                         continue;
                     }
 
 
                     FileOutputStream fos = new FileOutputStream(destFileName);
                     ZipOutputStream zipOut = new ZipOutputStream(fos);
-                    File fileToZip = new File(sourceFile);
+//                    File fileToZip = new File(sourceFile);
 
-                    System.out.println("gravando o arquivo: " + fileToZip.toPath() + " em --> " + destFileName);
+                    System.out.println("gravando o arquivo: " + file.toPath() + " em --> " + destFileName);
 
-                    zipFile(fileToZip, fileToZip.getName(), zipOut);
+                    zipFile(file, file.getName(), zipOut);
                     zipOut.close();
                     fos.close();
+
+                    // concurrency
+
+                    CopyFiles copyfiles = new CopyFiles("copiando diretorio",
+                            new File(destFileName),
+                            new File(fileToSave.toString() + File.separator + file.getName() + ".zip"));
+                    copyfiles.start();
+
+//                    FileUtils.moveFile(new File(destFileName), new File (fileToSave.toString() + File.separator + file.getName() + ".zip"));
                 }
             }
 
             return diretorio;
-        }
-        else {
+        } else {
             System.out.println("vazio");
             return null;
         }
@@ -172,7 +214,6 @@ public class Main {
         if (!destDir.exists()) {
             destDir.mkdir();
         }
-
 
 
         FileInputStream nfis = new FileInputStream(zipFilePath);
@@ -194,7 +235,7 @@ public class Main {
                 continue;
             }
             File f = new File(fileName);
-            if (f.isDirectory()){
+            if (f.isDirectory()) {
                 System.out.println(fileName + " --> entrou no directory");
                 continue;
             }
@@ -219,11 +260,11 @@ public class Main {
 
         javaxt.io.Image image = new javaxt.io.Image(zipIn.readAllBytes());
         image.rotate();
-        try{
-            if (image.getWidth() > 500){
+        try {
+            if (image.getWidth() > 500) {
                 image.setWidth(500);
             }
-        } catch (NullPointerException e){
+        } catch (NullPointerException e) {
             System.out.println("null point. no ideia");
         }
 
@@ -237,7 +278,6 @@ public class Main {
         }
         bos.close();
     }
-
 
 
     // zip file
@@ -281,11 +321,10 @@ public class Main {
             return new Scanner(new InputStreamReader(System.in, charsetIBM));
         }
 
-        System.out.println(Charset.availableCharsets());
         return new Scanner(new InputStreamReader(System.in, charsetUTF));
     }
 
-    private static String getCreationDate(File file){
+    private static String getCreationDate(File file) {
 
         BasicFileAttributes attrs;
 
@@ -296,7 +335,7 @@ public class Main {
             String pattern = "yyyy-MM";
             SimpleDateFormat simpleDateFormat = new SimpleDateFormat(pattern);
 
-            String formatted = simpleDateFormat.format( new Date( time.toMillis() - 86400000) );
+            String formatted = simpleDateFormat.format(new Date(time.toMillis() - 86400000));
 
             return formatted;
 
