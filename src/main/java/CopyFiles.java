@@ -16,15 +16,20 @@ public class CopyFiles implements Runnable{
         this.destFile = destFile;
     }
 
-    public void run() {
+    public synchronized void run() {
         System.out.println("Running " + threadName);
         try {
-            FileUtils.moveFile(originFile, destFile);
+            if(destFile.exists()){
+                destFile.delete();
+            }
+            FileUtils.copyFile(originFile, destFile);
         } catch (IOException e) {
             System.out.println("não conseguiu mover o arquivo: " + originFile.getAbsolutePath());
             e.printStackTrace();
         }
     }
+
+
 
     public void start () {
         System.out.println("Starting " +  threadName );

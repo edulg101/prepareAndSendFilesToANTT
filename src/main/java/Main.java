@@ -8,8 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.attribute.FileTime;
 import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Scanner;
+import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
 import java.util.zip.ZipOutputStream;
@@ -21,6 +20,7 @@ public class Main {
 
     static String destPathRede = "";
     static String ROOTDESTPATH = "Z:\\Supervisora\\RTA";
+    //    static String ROOTDESTPATH = "D:\\Documentos\\Users\\Eduardo\\Downloads\\teste";
     static File ROOTDESTPATHILE = new File(ROOTDESTPATH);
     static String ROOTORIGINPATH = "D:\\Documentos\\Users\\Eduardo\\Documentos\\ANTT\\OneDrive - ANTT- Agencia Nacional de Transportes Terrestres\\CRO\\Relatórios RTA";
     static File ORIGINPATHFILE = new File(ROOTORIGINPATH);
@@ -75,18 +75,16 @@ public class Main {
 
         String creationDate = getCreationDate(chosenFile);
         String creationYear = creationDate.substring(0, 4).trim();
-        String creationMonth = creationDate.substring(5).trim();
 
 
         Path destParentPath = Paths.get(ROOTDESTPATHILE + File.separator + parent + File.separator + creationYear + File.separator + creationDate);
-        File destParentPathFile = destParentPath.toFile();
-        if (!destParentPathFile.exists()) {
-            destParentPathFile.mkdirs();
+        if (!destParentPath.toFile().exists()) {
+            destParentPath.toFile().mkdirs();
         }
         if (!chosenFile.isDirectory()) {
-            FileUtils.moveFile(chosenFile, new File(destParentPathFile.getAbsoluteFile() + File.separator + chosenFile.getName()));
+            FileUtils.copyFile(chosenFile, new File(destParentPath + File.separator + chosenFile.getName()));
         } else {
-            startMovingFiles(chosenFile, destParentPathFile);
+            startMovingFiles(chosenFile, destParentPath.toFile());
         }
 
         System.out.println(optionStr);
@@ -116,98 +114,96 @@ public class Main {
                     file.mkdirs();
                 }
 
-
                 System.out.println("Transferindo Documentos no Diretorio Root");
                 System.out.printf("%s --> %s\n", file.toPath(), destFinalPath + File.separator + originFile.getName() + File.separator + file.getName());
 
+                File destFinalFile = new File(destFinalPath + File.separator + originFile.getName() + File.separator + file.getName());
                 // concorrencia
-                CopyFiles copyfiles = new CopyFiles("teste", file, new File(destFinalPath + File.separator + originFile.getName() + File.separator + file.getName()));
+                CopyFiles copyfiles = new CopyFiles("teste", file, destFinalFile);
                 copyfiles.start();
 //                FileUtils.moveFile(file, new File(destFinalPath + File.separator + originFile.getName() + File.separator + file.getName()));
             } else {
                 // dentro da pasta anexo
                 File[] subFiles = file.listFiles();
+
+
+               // colocar em ordem decrescente por tamanho do arquivo
+
+                for (int i = 0; i < subFiles.length; i++) {
+                    for (int j = i + 1; j < subFiles.length; j++) {
+                        File tmp = subFiles[i];
+                        if (subFiles[i].length() < subFiles[j].length()) {
+                            tmp = subFiles[i];
+                            subFiles[i] = subFiles[j];
+                            subFiles[j] = tmp;
+                        }
+                    }
+                }
+
+
                 for (File subFile : subFiles) {
+
                     if (subFile.getName().contains(".zip")) {
                         unzip(subFile.getAbsolutePath(), subFile.toPath().getParent().toString());
+
+                        int length = subFile.getName().length();
+
+                        File file1 = new File(subFile.toPath().getParent().toString() + File.separator + subFile.getName().substring(0, length - 4));
+
+                        File destFinalFile = new File(destFinalPath + File.separator + originFile.getName() + File.separator + file.getName() + File.separator + subFile.getName());
+
+                        File destFile = zipAllDirectory(file1, subFile.toPath().getParent());
+
+                        // concurrency
+
+                        CopyFiles copyfiles = new CopyFiles("copiando diretorio",
+                                destFile, destFinalFile);
+                        copyfiles.start();
+
 
                     } else {
                         System.out.println("esse zip tem que consertar para depois colar la");
                     }
                 }
-                System.out.println("nome file  --> " + file.getName());
-
-                File compactado = zipAllDirectory(file, Paths.get(destFinalPath + File.separator + originFile.getName() + File.separator + file.getName()));
-
-//                if (compactado != null) {
-//                    for (File f : compactado.listFiles()) {
-//                        Path finalFile = Paths.get(destFinalPath + File.separator + originFile.getName() + File.separator + file.getName() + File.separator + f.getName());
-//
-//                        System.out.println("f --> " + f);
-//                        System.out.println("destfinal --> " + finalFile);
-//                        FileUtils.moveFile(f, finalFile.toFile());
-//                    }
-//                }
             }
-
         }
-
     }
 
-
-    public static File zipAllDirectory(File anexoDirectory, Path fileToSave) throws IOException {
-
-
-        File[] listFiles = anexoDirectory.listFiles();
+    public static File zipAllDirectory(File unzipedDirectroy, Path fileToSave) throws IOException {
 
         File diretorio = null;
 
-        if (listFiles != null) {
+        String destFileName = "";
 
-            for (File file : listFiles) {
-                if (file.isDirectory()) {
+        if (unzipedDirectroy.isDirectory()) {
 
-//                    String sourceFile = file.getAbsolutePath();
-                    String destFileName = anexoDirectory + File.separator + "compactado" + File.separator + file.getName() + ".zip";
-
-                    diretorio = new File(anexoDirectory + File.separator + "compactado");
-                    if (!diretorio.exists()) {
-                        diretorio.mkdirs();
-                    }
-
-                    if (file.toPath().endsWith("compactado")) {
-                        continue;
-                    }
+            File test = new File(unzipedDirectroy.getParent());
+            if (!test.exists()) {
+                test.mkdirs();
+            }
+            ;
 
 
-                    FileOutputStream fos = new FileOutputStream(destFileName);
-                    ZipOutputStream zipOut = new ZipOutputStream(fos);
-//                    File fileToZip = new File(sourceFile);
-
-                    System.out.println("gravando o arquivo: " + file.toPath() + " em --> " + destFileName);
-
-                    zipFile(file, file.getName(), zipOut);
-                    zipOut.close();
-                    fos.close();
-
-                    // concurrency
-
-                    CopyFiles copyfiles = new CopyFiles("copiando diretorio",
-                            new File(destFileName),
-                            new File(fileToSave.toString() + File.separator + file.getName() + ".zip"));
-                    copyfiles.start();
-
-//                    FileUtils.moveFile(new File(destFileName), new File (fileToSave.toString() + File.separator + file.getName() + ".zip"));
-                }
+            diretorio = new File(unzipedDirectroy.getParent() + File.separator + "compactado");
+            if (!diretorio.exists()) {
+                diretorio.mkdirs();
             }
 
-            return diretorio;
-        } else {
-            System.out.println("vazio");
-            return null;
-        }
+            destFileName = unzipedDirectroy.getParent() + File.separator + "compactado" + File.separator + unzipedDirectroy.getName() + ".zip";
 
+            FileOutputStream fos = new FileOutputStream(destFileName);
+            ZipOutputStream zipOut = new ZipOutputStream(fos);
+
+
+            System.out.println("gravando o arquivo: " + unzipedDirectroy.toPath() + " em --> " + destFileName);
+
+            zipFile(unzipedDirectroy, unzipedDirectroy.getName(), zipOut);
+            zipOut.close();
+            fos.close();
+        }
+        return new File(destFileName);
     }
+
 
     private static void unzip(String zipFilePath, String destDirectory) throws IOException {
         File destDir = new File(destDirectory);
@@ -248,7 +244,6 @@ public class Main {
         zipIn.close();
     }
 
-
     private static void extractFile(ZipInputStream zipIn, String filePath) throws IOException {
         File parentFile = new File(filePath).getParentFile();
         if (!parentFile.exists()) {
@@ -256,7 +251,6 @@ public class Main {
         }
 
         System.out.println("Reduzindo o tamanho das imagens usando javaxt: " + Paths.get(filePath).getFileName());
-
 
         javaxt.io.Image image = new javaxt.io.Image(zipIn.readAllBytes());
         image.rotate();
@@ -296,7 +290,8 @@ public class Main {
             }
             File[] children = fileToZip.listFiles();
             for (File childFile : children) {
-                zipFile(childFile, fileName + "/" + childFile.getName(), zipOut);
+                System.out.println("zipando --> " + childFile);
+                zipFile(childFile, fileName + File.separator + childFile.getName(), zipOut);
             }
             return;
         }
